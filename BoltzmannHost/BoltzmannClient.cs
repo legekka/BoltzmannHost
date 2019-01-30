@@ -16,7 +16,6 @@ namespace BoltzmannHost
         public BoltzmannClient()
         {
             MachineName = Environment.MachineName;
-            System.Machine
         }
     }
 }
