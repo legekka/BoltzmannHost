@@ -12,7 +12,6 @@ namespace BoltzmannHost
     {
         public List<FilePacket> filePackets = new List<FilePacket>();
 
-
         public FilePacker() { }
 
         public static List<FilePacket> Generate(string filePath, int packetSize)
@@ -43,37 +42,15 @@ namespace BoltzmannHost
 
         public static void BuildFile(List<FilePacket> filePackets, string path)
         {
+            if (path.Last() != '\\' || path.Last() != '/')
+                path += @"\";
+
             List<byte> data = new List<byte>();
             for (int i = 0; i < filePackets.Count; i++)
             {
                 data.AddRange(filePackets[i].Data);
             }
             File.WriteAllBytes(path + filePackets[0].FileName, data.ToArray());
-            Console.ReadLine();
-        }
-    }
-    class FilePacket
-    {
-        public int PacketID;
-        public int TotalCount;
-        public string FileName;
-        public byte[] Data;
-        public bool LastPacket;
-
-        public FilePacket(int packetId, string fileName, byte[] data)
-        {
-            PacketID = packetId;
-            FileName = fileName;
-            Data = data;
-            LastPacket = false;
-        }
-        [JsonConstructor]
-        public FilePacket(int packetId, string fileName, byte[] data, bool lastPacket)
-        {
-            PacketID = packetId;
-            FileName = fileName;
-            Data = data;
-            LastPacket = lastPacket;
         }
     }
 }
