@@ -23,11 +23,18 @@ namespace BoltzmannHost
             ws.NewMessageReceived += WsServer_NewMessageReceived;
             ws.NewDataReceived += WsServer_NewDataReceived;
             ws.SessionClosed += WsServer_SessionClosed;
-            ws.Start();
             bSessions = new List<BSession>();
-            Console.WriteLine("Server is running on port " + port + ". Press any key to exit...");
-            Console.ReadKey();
+        }
+
+        public void StartServer()
+        {
+            ws.Start();
+        }
+        public void StopServer()
+        {
             ws.Stop();
+            bSessions = null;
+            ws.Dispose();
         }
 
         private static void WsServer_NewSessionConnected(WebSocketSession session)
@@ -35,8 +42,10 @@ namespace BoltzmannHost
             bSessions.Add(new BSession(session));
             int index = getIndex(session);
             bSessions[index].SetWorkingFolder(index);
-            Console.WriteLine("WSC_" + index + " connected.");
+            //Console.WriteLine("WSC_" + index + " connected.");
             RequestClientInfo(session);
+            UpdateListBox();
+
         }
         private static void WsServer_NewMessageReceived(WebSocketSession session, string value)
         {
@@ -47,14 +56,13 @@ namespace BoltzmannHost
                 case "clientinfo":
                     {
                         bSessions[index].ClientInfo = JsonConvert.DeserializeObject<ClientInfo>(value.Split('|')[1]);
-                        Console.WriteLine("Got ClientInfo{WSC_" + index + "}");
+                        UpdateListBox();
                     }
                     break;
 
                 case "packet":
                     {
                         FilePacket filePacket = JsonConvert.DeserializeObject<FilePacket>(value.Split('|')[1]); 
-                        Console.WriteLine("Got Packet{" + filePacket.PacketID + "}");
 
                         bSessions[index].FilePackets.Add(filePacket);
                         if (filePacket.LastPacket)
@@ -62,7 +70,7 @@ namespace BoltzmannHost
                             if (CheckFilePackets(filePacket.PacketID, index))
                             {
                                 FilePacker.BuildFile(bSessions[index].FilePackets, bSessions[index].WorkingFolder);
-                                Console.WriteLine("File built. " + bSessions[index].WorkingFolder + @"\" + filePacket.FileName);
+                                Program.Form1.SetInfoText("File built. " + bSessions[index].WorkingFolder + @"\" + filePacket.FileName);
                             }
                         }
                     }
@@ -70,8 +78,8 @@ namespace BoltzmannHost
                 case "result":
                     {
                         bSessions[index].Result = JsonConvert.DeserializeObject<Result>(value.Split('|')[1]);
-                        Console.WriteLine("Got Result{WSC_" + index + ":" + bSessions[index].Result.JobID + "}");
-                        Console.WriteLine(bSessions[index].Result.RenderSetting.OutputPath);
+                        Program.Form1.SetInfoText("Got Result{WSC_" + index + ":" + bSessions[index].Result.JobID + "}");
+                        Program.Form1.SetInfoText(bSessions[index].Result.RenderSetting.OutputPath);
                     }
                     break;
             }
@@ -80,13 +88,14 @@ namespace BoltzmannHost
         private static void WsServer_SessionClosed(WebSocketSession session, SuperSocket.SocketBase.CloseReason value)
         {
             int index = getIndex(session);
-            Console.WriteLine("WSC_" + index + " session closed.");
+            Program.Form1.SetInfoText("WSC_" + index + " session closed.");
             bSessions.RemoveAt(index);
+            UpdateListBox();
         }
 
         private static void WsServer_NewDataReceived(WebSocketSession session, byte[] value)
         {
-            Console.WriteLine("NewDataRecieved " + session.Host + " " + session.Origin + " " + value.ToString());
+            Program.Form1.SetInfoText("NewDataRecieved " + session.Host + " " + session.Origin + " " + value.ToString());
         }
 
         public static void RequestClientInfo(WebSocketSession session)
@@ -123,12 +132,8 @@ namespace BoltzmannHost
                     sum += bSession.ClientInfo.GpuScore;
                 else
                     sum += bSession.ClientInfo.CpuScore;
-            Console.WriteLine("Total performance: " + sum);
-            Console.WriteLine("WSC_" + index + " performance: " + perf);
             double ratio = (double)perf / (double)sum;
-            Console.WriteLine("Render ratio: " + ratio);
             int calculated = (int)Math.Round(sample * ratio);
-            Console.WriteLine("Calculated Sample: " + calculated);
             return calculated;
         }
 
@@ -147,6 +152,21 @@ namespace BoltzmannHost
             int i = 0;
             while (i < n && bSessions[index].FilePackets[i] != null) { i++; }
             return (i == n);
+        }
+
+        public static async void UpdateListBox()
+        {
+            Program.Form1.ListBoxClear();
+            int perf = 0;
+            foreach (var bSession in bSessions)
+            {
+                if (bSession.ClientInfo.useGPU)
+                    perf = bSession.ClientInfo.GpuScore;
+                else
+                    perf = bSession.ClientInfo.CpuScore;
+                Program.Form1.AddListBoxElement("WSC_" + getIndex(bSession.Session) + " - " + perf);
+            }
+            
         }
     }
 }

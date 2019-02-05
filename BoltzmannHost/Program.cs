@@ -1,22 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
-using SuperWebSocket;
-using Newtonsoft.Json;
-
+using System.Windows.Forms;
 
 namespace BoltzmannHost
 {
-    class Program
+    static class Program
     {
-        public static wsServer wsServer;
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        public static Form1 Form1;
 
-        static void Main(string[] args)
+        [STAThread]
+        static void Main()
         {
-            wsServer = new wsServer(9880);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Form1 = new Form1();
+            Application.Run(Form1);
         }
-        
     }
 }
