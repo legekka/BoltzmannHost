@@ -66,12 +66,17 @@ namespace BoltzmannHost
                     {
                         FilePacket filePacket = JsonConvert.DeserializeObject<FilePacket>(value.Split('|')[1]); 
 
+                        if (bSessions[index].FilePackets == null)
+                        {
+                            bSessions[index].FilePackets = new List<FilePacket>();
+                        }
                         bSessions[index].FilePackets.Add(filePacket);
                         if (filePacket.LastPacket)
                         {
                             if (CheckFilePackets(filePacket.PacketID, index))
                             {
                                 FilePacker.BuildFile(bSessions[index].FilePackets, bSessions[index].WorkingFolder);
+                                bSessions[index].FilePackets = null;
                                 Program.Form1.SetInfoText("WSC_" + index + ": File built. " + bSessions[index].WorkingFolder + @"\" + filePacket.FileName);
                             }
                         }
@@ -122,7 +127,7 @@ namespace BoltzmannHost
 
         private static int CalculateSample(BSession bsession, int sample)
         {
-            int sum = 0;
+            /*int sum = 0;
             int perf;
             if (bsession.ClientInfo.useGPU)
                 perf = bsession.ClientInfo.GpuScore;
@@ -136,6 +141,8 @@ namespace BoltzmannHost
             double ratio = (double)perf / (double)sum;
             int calculated = (int)Math.Round(sample * ratio);
             return calculated;
+            */
+            return (int)Math.Round((double)sample / (double)bSessions.Count);
         }
 
         private static int getIndex(WebSocketSession session)
