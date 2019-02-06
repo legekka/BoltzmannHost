@@ -28,12 +28,14 @@ namespace BoltzmannHost
 
         public void StartServer()
         {
+            bSessions = new List<BSession>();
             ws.Start();
+            Program.Form1.SetInfoText("Server started.");
         }
         public void StopServer()
         {
             ws.Stop();
-            bSessions = null;
+            Program.Form1.SetInfoText("Server stopped.");
             ws.Dispose();
         }
 
@@ -42,7 +44,7 @@ namespace BoltzmannHost
             bSessions.Add(new BSession(session));
             int index = getIndex(session);
             bSessions[index].SetWorkingFolder(index);
-            //Console.WriteLine("WSC_" + index + " connected.");
+            Program.Form1.SetInfoText("WSC_" + index + " connected.");
             RequestClientInfo(session);
             UpdateListBox();
 
@@ -70,7 +72,7 @@ namespace BoltzmannHost
                             if (CheckFilePackets(filePacket.PacketID, index))
                             {
                                 FilePacker.BuildFile(bSessions[index].FilePackets, bSessions[index].WorkingFolder);
-                                Program.Form1.SetInfoText("File built. " + bSessions[index].WorkingFolder + @"\" + filePacket.FileName);
+                                Program.Form1.SetInfoText("WSC_" + index + ": File built. " + bSessions[index].WorkingFolder + @"\" + filePacket.FileName);
                             }
                         }
                     }
@@ -79,7 +81,6 @@ namespace BoltzmannHost
                     {
                         bSessions[index].Result = JsonConvert.DeserializeObject<Result>(value.Split('|')[1]);
                         Program.Form1.SetInfoText("Got Result{WSC_" + index + ":" + bSessions[index].Result.JobID + "}");
-                        Program.Form1.SetInfoText(bSessions[index].Result.RenderSetting.OutputPath);
                     }
                     break;
             }
@@ -106,7 +107,7 @@ namespace BoltzmannHost
         public static void SendFile(WebSocketSession session)
         {
             int index = getIndex(session);
-            int sample = CalculateSample(getIndex(session), 250);
+            int sample = CalculateSample(bSessions[index], 250);
             RenderSetting renderSetting = new RenderSetting("teszt.blend", "kep", sample, index);
             Job job = new Job("teszt01", renderSetting);
             string message = "new job|";
@@ -119,14 +120,14 @@ namespace BoltzmannHost
                 session.Send(message + JsonConvert.SerializeObject(packet));
         }
 
-        private static int CalculateSample(int index, int sample)
+        private static int CalculateSample(BSession bsession, int sample)
         {
             int sum = 0;
             int perf;
-            if (bSessions[index].ClientInfo.useGPU)
-                perf = bSessions[index].ClientInfo.GpuScore;
+            if (bsession.ClientInfo.useGPU)
+                perf = bsession.ClientInfo.GpuScore;
             else
-                perf = bSessions[index].ClientInfo.CpuScore;
+                perf = bsession.ClientInfo.CpuScore;
             foreach (var bSession in bSessions)
                 if (bSession.ClientInfo.useGPU)
                     sum += bSession.ClientInfo.GpuScore;
@@ -167,6 +168,29 @@ namespace BoltzmannHost
                 Program.Form1.AddListBoxElement("WSC_" + getIndex(bSession.Session) + " - " + perf);
             }
             
+        }
+
+        public static void SendJobs(string filepath, int sample)
+        {
+            RenderSetting renderSetting;
+            Job job;
+            string filename = Path.GetFileName(filepath);
+            string filenameshort = Path.GetFileNameWithoutExtension(filepath);
+            string message;
+            
+            for (int i = 0; i < bSessions.Count; i++)
+            {
+                renderSetting = new RenderSetting(filename, filenameshort, CalculateSample(bSessions[i], sample), i);
+                job = new Job(filenameshort, renderSetting);
+
+                message = "new job|";
+                bSessions[i].Session.Send(message + JsonConvert.SerializeObject(job));
+
+                message = "packet|";
+                List<FilePacket> filePackets = FilePacker.Generate(filepath, 32768);
+                foreach (var packet in filePackets)
+                    bSessions[i].Session.Send(message + JsonConvert.SerializeObject(packet));
+            }
         }
     }
 }

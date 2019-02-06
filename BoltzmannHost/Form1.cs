@@ -80,7 +80,9 @@ namespace BoltzmannHost
 
         private void button4_Click(object sender, EventArgs e)
         {
-
+            string filename = textBox3.Text;
+            int sample = Convert.ToInt32(textBox4.Text);
+            wsServer.SendJobs(filename, sample);
         }
     }
 }
